@@ -25,6 +25,7 @@ import com.google.android.exoplayer.util.ParsableByteArray;
 import com.google.android.exoplayer.util.Util;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Facilitates the extraction of data from the FLV container format.
@@ -40,6 +41,7 @@ public final class FlvExtractor implements Extractor, SeekMap {
   private static final int STATE_SKIPPING_TO_TAG_HEADER = 2;
   private static final int STATE_READING_TAG_HEADER = 3;
   private static final int STATE_READING_TAG_DATA = 4;
+  private static final int STATE_SEEK_FLV = 5;
 
   // Tag types.
   private static final int TAG_TYPE_AUDIO = 8;
@@ -69,6 +71,8 @@ public final class FlvExtractor implements Extractor, SeekMap {
   private AudioTagPayloadReader audioReader;
   private VideoTagPayloadReader videoReader;
   private ScriptTagPayloadReader metadataReader;
+  private List<Double> keyFrameTimes;
+  private List<Double> keyFramePositions;
 
   public FlvExtractor() {
     scratch = new ParsableByteArray(4);
@@ -116,7 +120,7 @@ public final class FlvExtractor implements Extractor, SeekMap {
 
   @Override
   public void seek() {
-    parserState = STATE_READING_FLV_HEADER;
+    parserState = STATE_SEEK_FLV;
     bytesToNextTagHeader = 0;
   }
 
@@ -148,6 +152,14 @@ public final class FlvExtractor implements Extractor, SeekMap {
             return RESULT_CONTINUE;
           }
           break;
+        case STATE_SEEK_FLV:
+          if (seekPosition.position == 0) {
+            parserState = STATE_READING_FLV_HEADER;
+          }
+          else {
+            parserState = STATE_READING_TAG_HEADER;
+          }
+          break;
       }
     }
   }
@@ -171,7 +183,7 @@ public final class FlvExtractor implements Extractor, SeekMap {
     int flags = headerBuffer.readUnsignedByte();
     boolean hasAudio = (flags & 0x04) != 0;
     boolean hasVideo = (flags & 0x01) != 0;
-    if (hasAudio && audioReader == null) {
+    if (/*hasAudio &&*/ audioReader == null) {
       audioReader = new AudioTagPayloadReader(extractorOutput.track(TAG_TYPE_AUDIO));
     }
     if (hasVideo && videoReader == null) {
@@ -275,12 +287,26 @@ public final class FlvExtractor implements Extractor, SeekMap {
 
   @Override
   public boolean isSeekable() {
-    return false;
+    keyFrameTimes = metadataReader.getKeyFrameTimes();
+    keyFramePositions = metadataReader.getKeyFrameFilePositions();
+    return (keyFrameTimes != null) && (keyFramePositions != null) && (keyFramePositions.size() == keyFrameTimes.size());
   }
 
-  @Override
-  public long getPosition(long timeUs) {
-    return 0;
-  }
+    @Override
+    public long getPosition(long timeUs) {
+        double timeMs = timeUs / 1000000;
+        if (keyFrameTimes != null && keyFramePositions != null) {
+            for (int i = 0; i < keyFrameTimes.size(); i++) {
+                if (keyFrameTimes.get(i) > timeMs) {
+                    int index = i - 1;
+                    if (i == 0) {
+                        index = 0;
+                    }
+                    return (long) ((double) keyFramePositions.get(index));
+                }
+            }
+        }
+        return 0;
+    }
 
 }

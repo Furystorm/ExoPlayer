@@ -15,6 +15,11 @@
  */
 package com.google.android.exoplayer.extractor;
 
+import android.net.Uri;
+import android.os.Handler;
+import android.os.SystemClock;
+import android.util.SparseArray;
+
 import com.google.android.exoplayer.C;
 import com.google.android.exoplayer.MediaFormat;
 import com.google.android.exoplayer.MediaFormatHolder;
@@ -31,11 +36,6 @@ import com.google.android.exoplayer.upstream.Loader;
 import com.google.android.exoplayer.upstream.Loader.Loadable;
 import com.google.android.exoplayer.util.Assertions;
 import com.google.android.exoplayer.util.Util;
-
-import android.net.Uri;
-import android.os.Handler;
-import android.os.SystemClock;
-import android.util.SparseArray;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -365,7 +365,7 @@ public final class ExtractorSampleSource implements SampleSource, SampleSourceRe
       for (int i = 0; i < trackCount; i++) {
         MediaFormat format = sampleQueues.valueAt(i).getFormat();
         mediaFormats[i] = format;
-        if (format.durationUs != C.UNKNOWN_TIME_US && format.durationUs > maxTrackDurationUs) {
+        if (format.durationUs > 0 && format.durationUs != C.UNKNOWN_TIME_US && format.durationUs > maxTrackDurationUs) {
           maxTrackDurationUs = format.durationUs;
         }
       }
