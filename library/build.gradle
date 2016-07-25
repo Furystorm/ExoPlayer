@@ -65,7 +65,7 @@ android.libraryVariants.all { variant ->
         classpath = files(variant.javaCompile.classpath.files, project.android.getBootClasspath())
         options {
             links "http://docs.oracle.com/javase/7/docs/api/"
-            linksOffline "https://developer.android.com/reference","${android.sdkDirectory}/docs/reference"
+            linksOffline "https://developer.android.com/reference", "${android.sdkDirectory}/docs/reference"
         }
         exclude '**/BuildConfig.java'
         exclude '**/R.java'
@@ -80,4 +80,29 @@ publish {
     version = 'r1.5.9'
     description = 'The ExoPlayer library.'
     website = 'https://github.com/google/ExoPlayer'
+}
+
+//define a function that generates jar
+//target -- output of jar
+//classDir -- directory of .class files
+//srcDir -- directory of source files
+def makeJar(String target, String classDir, String srcDir) {
+    exec {                  //pack classDir into jar
+        executable "jar"    //jar cvf <target> -C <classDir> .
+        args "cvf", target
+        args "-C", classDir
+        args "", "."
+    }
+    exec {                  //add srcDir to jar
+        executable "jar"    //jar uvf <target> -C <srcDir> .
+        args "uvf", target
+        args "-C", srcDir
+        args "", "."
+    }
+}
+
+//define a task that generates jar with sources
+//gradlew :library:buildJar
+task buildJar(dependsOn: ['build']) << {
+    makeJar("build/outputs/exoplayer.jar", "build/intermediates/classes/release", "src/main/java")
 }
